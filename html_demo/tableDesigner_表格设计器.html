@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>表格设计器</title>
+		<style>
+        .primary{background:#2195f1;color:#fff;}
+        .info{background:#242633;color:#fff;}
+        .success{background:#67c23a;color:#fff;}
+        .warrning{background:#e6a23c;color:#fff;}
+        .danger{background:#f56c6c;color:#fff;}
+        body{position:relative;width:100%;height:100%;margin:0px;padding:0px}
+        .container{position:absolute;left:5px;top:55px;right:316px;bottom:5px;border:1px dashed #ccc}
+        .result{overflow:hidden;}
+        .toolPanel{position:fixed;right:5px;top:5px;left:5px;height:45px;border:1px solid #ccc;background:#2f3242;z-index:1000;}
+        .toolPanel ul{margin:0;padding:0}
+        .toolPanel ul li{display:inline-block;margin:5px 2px;padding:0 8px;border:0px solid #ccc;line-height:35px;font-size:14px;border-radius:4px;cursor:pointer;}
+
+        .attribPanel{position:fixed;right:5px;top:55px;bottom:5px;width:300px;border:1px solid #ccc;background:#efefef;z-index:100;}
+		.attribPanel .title{font-size:16px;line-height:25px;padding-left:20px;font-weight:bold}
+        .attribPanel ul{margin:0;padding:0}
+        .attribPanel ul li{display:block;margin:2px 5px;padding:0 8px;border:0px solid #ccc;line-height:26px;font-size:14px;}
+		.attribPanel ul li .label{display:inline-block;width:80px;margin:2px 5px;padding:0 8px;border:0px solid #ccc;line-height:26px;font-size:14px;}
+		.attribPanel ul li input{display:inline-block;width:150px;padding-left:10px;border:1px solid #333;line-height:24px;}
+        .editInput{
+        display: inline-block;
+        width: 100%;
+        height: 40px;
+        line-height: 40px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: none;
+        /*
+        position:relative;left:0px;top:0px;right:0px;bottom:0px;background:#eee;color:#f00;
+        */
+	
+        }
+	</style>
+	<style id="style1">
+	.mytable{border-right:1px solid #4b4b4b;border-top:1px solid #4b4b4b;border-collapse:collapse;font-size:13px;margin:0 auto;overflow:hidden;}
+	.mytable td{border-left:1px solid #4b4b4b;border-bottom:1px solid #4b4b4b;min-height:15px;text-align:center;min-width:80px;padding:2px 5px}
+	.mytable td.title{font-weight:bold;font-size:14px;background:#eee;padding:5px 0px;text-align:center;}
+	.mytable td.header{background:#0cf}
+	.mytable td.select,table th.select{background:#221d6c;color:#fff;}
+	.mytable tr.active{background:rgba(0,0,255,0.05);border:1px solid #00f;}
+	</style>
+  </head>
+  <body> 
+  <input type="file" id="file1" style="display:none" onchange="loadFile(this)">
+  <div class="toolPanel" onselectStart="return false">
+	<ul>
+		<li class="primary"  onclick="loadJSON()">→导入json</li>
+		<li class="primary"  onclick="loadHTML()">→导入表格</li>
+		<li class="success" onclick="saveJson()"> ✔保存json</li>
+		<li class="success" onclick="undo()">←恢复</li>
+		<!--
+		<li class="success" onclick="redo()">redo</li>
+		-->
+		
+		<li class="info"> </li>
+		<li class="primary" onclick="buildTable(2,4)">▦新建表格</li>
+		<li class="primary" onclick="addRow()">+添加行</li>
+		<!--
+		<li class="info" onclick="insertRow()">插入行</li>
+		-->
+
+		<li class="danger" onclick="delRow()">-删除行</li>
+        <li class="primary" onclick="addCell()">+添加列</li>
+		<!--
+		<li class="info">插入列</li>
+		-->
+		<li class="danger" onclick="delCell()">-删除列</li>
+        <li class="primary" onclick="mergeRow()">☵合并行列</li>
+		<li class="primary" onclick="splitRow()">☲拆分行列</li>
+		
+	</ul>
+  </div>
+<div class="attribPanel">
+<div class="title">表格属性</div>
+<ul>
+<li><span class="label">样式名称：</span><input type=text id="tableclassname" value="mytable" onkeyup="changeStyle()"></li>
+<li><span class="label">宽度：</span><input type=text id="tablewidth" value="100%" onkeyup="changeStyle()"></li>
+<li><span class="label">边框粗细：</span><input type=text id="tableborderwidth" value="1px" onkeyup="changeStyle()"></li>
+<li><span class="label">边框颜色：</span><input type=text id="tablebordercolor" value="#333" onkeyup="changeStyle()"></li>
+</ul>
+<br><br>
+<div class="title">选中单元格属性</div>
+<ul>
+<li><span class="label">样式名称：</span><input type=text id="tdclassname" value="td1" onkeyup="changeStyle()"></li>
+<li><span class="label">宽度：</span><input type=text id="tdwidth" value="100px" onkeyup="changeStyle()"></li>
+<li><span class="label">高度：</span><input type=text id="tdheight" value="25px" onkeyup="changeStyle()"></li>
+<li><span class="label">背景色：</span><input type=text id="tdbgcolor" value="#0cf" onkeyup="changeStyle()"></li>
+<li><span class="label">边框颜色：</span><input type=text id="tdbordercolor" value="#333" onkeyup="changeStyle()"></li>
+<li><span class="label">内容：</span><input type=text id="tdcontent" value="姓名" onkeyup="changeStyle()"></li>
+</ul>
+</div>
+  <div id="container" class="container">
+   <div id="result" class="result"></div>
+  </div>
+  
+  </body>
+ <script type="text/javascript">
+ var result=document.getElementById("result");
+var  isSel=false;
+
+ var targetTable;
+ var tableData=[
+	 [
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":0,"rowspan":1,"colspan":1,"content":"客户"},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":1,"rowspan":1,"colspan":1,"content":"期初余额"},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":2,"rowspan":1,"colspan":2,"content":"订单金额"},
+	 {"tagname":"TD","isReal":false,"r_index":0,"c_index":2,"rowspan":1,"colspan":2,"content":""},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":3,"rowspan":1,"colspan":1,"content":"收款金额"},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":4,"rowspan":1,"colspan":1,"content":"收款账户"},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":5,"rowspan":1,"colspan":1,"content":"客户余额"},
+	 {"tagname":"TD","isReal":true,"r_index":0,"c_index":6,"rowspan":1,"colspan":1,"content":"备注"}
+	 ],
+	 [
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":0,"rowspan":2,"colspan":1,"content":"新月"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":1,"rowspan":1,"colspan":1,"content":"21"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":2,"rowspan":3,"colspan":1,"content":"22"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":3,"rowspan":1,"colspan":1,"content":"23"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":4,"rowspan":1,"colspan":1,"content":"24"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":5,"rowspan":1,"colspan":1,"content":"25"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":6,"rowspan":1,"colspan":1,"content":"26"},
+	 {"tagname":"TD","isReal":true,"r_index":1,"c_index":7,"rowspan":1,"colspan":1,"content":""}
+	 ],
+	 [
+	 {"tagname":"TD","isReal":false,"r_index":2,"c_index":0,"rowspan":2,"colspan":1,"content":""},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":0,"rowspan":1,"colspan":1,"content":"31"},
+	 {"tagname":"TD","isReal":false,"r_index":2,"c_index":2,"rowspan":3,"colspan":1,"content":""},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":1,"rowspan":1,"colspan":1,"content":"32"},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":2,"rowspan":1,"colspan":1,"content":"33"},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":3,"rowspan":1,"colspan":1,"content":"34"},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":4,"rowspan":1,"colspan":1,"content":"35"},
+	 {"tagname":"TD","isReal":true,"r_index":2,"c_index":5,"rowspan":1,"colspan":1,"content":""}
+	 ],
+	 [
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":0,"rowspan":1,"colspan":1,"content":"合计"},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":1,"rowspan":1,"colspan":1,"content":"41"},
+	 {"tagname":"TD","isReal":false,"r_index":3,"c_index":2,"rowspan":3,"colspan":1,"content":""},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":2,"rowspan":1,"colspan":1,"content":"42"},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":3,"rowspan":1,"colspan":1,"content":"43"},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":4,"rowspan":1,"colspan":1,"content":"-"},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":5,"rowspan":1,"colspan":1,"content":"45"},
+	 {"tagname":"TD","isReal":true,"r_index":3,"c_index":6,"rowspan":1,"colspan":1,"content":""}
+	 ]
+ ]
+ var historyData=[];//历史数据
+ var maxRecNum=20;//保存最多历史条数
+var historyIndex;//历史记录序号
+var historyDataLen;//历史记录数组长度
+var htmlCode;
+var file1=document.getElementById("file1");
+
+function changeStyle(){
+	var classname1=tableclassname.value;
+	classname1="."+classname1.replace(".","").replace("#","")
+	var b1=tableborderwidth.value;
+	var w1=tablewidth.value;
+	var w2=tdwidth.value;
+	var c1=tablebordercolor.value;
+	var h2=tdheight.value;
+	var bgcolor2=tdbgcolor.value;
+	var styleStr=classname1+"{width:"+ w1+";border-right:"+b1+" solid "+c1+";border-top:"+b1+" solid "+c1+";border-collapse:collapse;font-size:13px;margin:0 auto;overflow:hidden;}\n";
+	styleStr+=classname1+" td{border-left:"+b1+" solid "+c1+";border-bottom:"+b1+" solid "+c1+";min-height:"+h2+";text-align:center;min-width:80px;padding:2px 5px}\n";
+	styleStr+=classname1+" td.title{font-weight:bold;font-size:14px;background:#eee;padding:5px 0px;text-align:center;}\n";
+	styleStr+=classname1+" td.header{background:"+bgcolor2+"}\n";
+	styleStr+=classname1+" td.select,table th.select{background:#221d6c;color:#fff;}\n";
+	styleStr+=classname1+" tr.active{background:rgba(0,0,255,0.05);border:1px solid #00f;}\n";
+	style1.innerHTML=styleStr;
+}
+
+function loadJSON(){
+	file1.click()
+	file1.onchange=function(){
+			loadFile("json",file1);			
+	}
+}
+
+function loadHTML(){
+	file1.click()
+	file1.onchange=function(){
+			loadFile("html",file1);			
+	}
+}
+
+function loadFile(stype,targetObj){	
+        var file, reader,resultStr;
+        //file =targetObj.files.item(0);
+		file =targetObj.files[0];
+		console.log(file.name);
+		//var realpath=targetObj.files[0].webkitRelativePath;//获取文件路径
+        reader = new FileReader();
+        reader.onload = function(e) {
+			//console.log(e.target.result);
+			resultStr=e.target.result;
+			switch(stype){
+				case "json":
+							tableData=JSON.parse(resultStr);
+							MatrixtoTable(tableData);
+							saveHistory(targetTable.innerHTML);
+				break;
+				case "html":
+							 targetTable.innerHTML=resultStr
+				break
+			}
+			
+        };
+        reader.onerror =function(){
+			alert("导入文件失败");
+		}
+		 reader.readAsText(file, "utf-8")
+		 reader=null;//释放缓存
+		return resultStr
+}
+
+
+//保存json
+function saveJson(){
+	//var tablehtml=historyData[historyData.length-1]
+	var jsonCode=TabletoMatrix(targetTable)
+	console.log(JSON.stringify(jsonCode))
+	console.log(historyData[historyData.length-1])
+}
+//保存历史记录
+function saveHistory(htmlCode0){
+	historyData.push(htmlCode0)
+	historyDataLen=historyData.length;
+	//historyData.splice(historyIndex+1,0,tableData)
+	if (historyDataLen>maxRecNum){//当存储记录超过20条时候，就删除最前面的记录
+		//historyData.unshift();//删除历史记录第一条记录，保证最新历史记录
+		var newData = historyData.filter(function(item,index) {
+		//return item[0] != 数组值;
+		return index!=0
+		});
+		historyData = newData;
+	}
+	historyIndex=historyDataLen-1
+}
+
+//恢复表格历史操作
+function undo(){
+	if(historyDataLen>1){
+		historyDataLen--;
+		historyData.length=historyDataLen
+		htmlCode=historyData[historyDataLen-1];
+		showHistoryTable(htmlCode)
+	}
+}
+
+function showHistoryTable(htmlCode){
+    targetTable.innerHTML=htmlCode
+	 initDrag()
+}
+
+function redo(){
+	var dataLen=historyData.length;
+	htmlCode=historyData[historyDataLen-1];
+	showHistoryTable(htmlCode)
+}
+  //获取table内容并转成二维数组（支持colspan和rowspan）
+function TabletoMatrix(table) {
+    var data = [];
+	var table=(typeof(table)=="string")?document.getElementById(table):table;
+	var rows=table.rows;
+	var cells=""
+    if (rows.length == 0) {
+        return data;
+    }
+
+	//清空隐藏的单元格
+	for (var rowIndex=0;rowIndex<rows.length ; rowIndex++){
+		var cells=rows[rowIndex].cells;
+		for (var cellIndex=0;cellIndex<cells.length ;cellIndex++){
+			if (cells[cellIndex].style.display=="none"){//隐藏的单元格不做处理
+				cells[cellIndex].remove();
+			}
+		}
+	}
+
+	//开始table转matrix结构
+	rows=table.rows;
+    //填充数组th
+	for (var rowIndex=0;rowIndex<rows.length ; rowIndex++){
+		var arr = [];//每行数据
+		var cells=rows[rowIndex].cells;
+		for (var cellIndex=0;cellIndex<cells.length ;cellIndex++){
+			//console.log(rowIndex,cellIndex,cells[cellIndex].innerHTML,cells[cellIndex].style.display)
+			if (cells[cellIndex].style.display=="none"){//隐藏的单元格不做处理
+				continue
+			}
+			//var rowspan=cells[cellIndex].getAttribute("rowspan");
+			//var colspan=cells[cellIndex].getAttribute("colspan");
+			var rowspan=cells[cellIndex].rowSpan;
+			var colspan=cells[cellIndex].colSpan;
+			//console.log(rowspan,colspan)
+			var item;
+			item={
+				tagname:cells[cellIndex].tagName,
+                isReal:true,
+				r_index:rowIndex,
+				c_index:cellIndex,
+				rowspan:rowspan,
+				colspan:colspan,
+				content:cells[cellIndex].innerHTML
+			}
+			arr.push(item);
+
+			// if (cells[cellIndex].getAttribute("colspan")) {
+			if(colspan>1){
+				 for (var k =1, len =colspan; k< len; k++) {	
+					  item={
+							tagname:cells[cellIndex+k].tagName,
+                            isReal:false,
+							r_index:rowIndex,
+							c_index:cellIndex+k,
+							rowspan:rowspan,
+							colspan:colspan,
+							content:"",
+						}  
+						if (rowspan>1){
+							 item={
+								tagname:cells[cellIndex+k].tagName,
+                                isReal:false,
+								r_index:rowIndex,
+								c_index:cellIndex+k,
+								rowspan:rowspan,
+								colspan:colspan,
+								content:"",
+							}
+						}
+						 arr.push(item);
+				};
+			 }			  
+		}
+		data.push(arr);
+	}
+
+
+    //二次填充
+    var yIndex = 0;
+	for (var rowIndex=0;rowIndex<rows.length ; rowIndex++){
+		var xIndex = 0;
+		var cells=rows[rowIndex].cells;
+		for (var cellIndex=0;cellIndex<cells.length ;cellIndex++){
+			if (cells[cellIndex].style.display=="none"){//隐藏的单元格不做处理
+				continue
+			}
+			var item;
+			var rowspan=cells[cellIndex].rowSpan;
+			var colspan=cells[cellIndex].colSpan;
+			var t_yIndex = 0;
+			// if (cells[cellIndex].getAttribute("rowspan")) {
+			if (rowspan>1){
+				t_yIndex = parseInt(cells[cellIndex].getAttribute("rowspan"));
+			 }
+			 for (var k = 1, len = t_yIndex; k < len; k++) {
+                var arr = data[yIndex +k];
+				// arr.splice(xIndex, 0, 'null');//行合并
+				 item={
+					tagname:cells[cellIndex].tagName,
+                    isReal:false,
+					r_index:rowIndex+k,
+					c_index:cellIndex,
+					rowspan:rowspan,
+					colspan:colspan,
+					content:"",
+				}    
+                arr.splice(xIndex, 0, item);//行合并
+            }
+			 //if (cells[cellIndex].getAttribute("colspan")) {
+			if(colspan>1){
+                xIndex += parseInt(cells[cellIndex].getAttribute("colspan"));
+            } else {
+                xIndex++;
+            }
+		}
+		yIndex++;
+	}
+
+	//console.log(data)
+	//console.log(JSON.stringify(data))
+	return data;
+}
+
+function getCvsData(matrixData) {
+    var cvsLines = '';
+    for (var i = 0, len = matrixData.length; i < len; i++) {
+		var r_item=matrixData[i]
+		var rowStr=""
+		for (var j=0, len1 =r_item.length; j< len1; j++){
+				rowStr+=r_item[j].content+","
+		}
+        cvsLines += rowStr+ '\n';
+    }
+	//console.log(cvsLines);
+   // return cvsLines;
+}
+
+function MatrixtoTable(matrixData) {   
+    var cvsLines = '<table width=800 border=1 class="mytable">';
+    for (var i = 0, len = matrixData.length; i < len; i++) {
+		var r_item=matrixData[i]
+		var rowStr="<tr>"
+		for (var j=0, len1 =r_item.length; j< len1; j++){
+				var tag=r_item[j].tagname;
+				tag=tag.toLowerCase();
+				var colspan=r_item[j].colspan;
+				var rowspan=r_item[j].rowspan;
+				var attr_colspan="";
+				var attr_rowspan="";
+				if (r_item[j].isReal==true){
+					if (rowspan>1){
+						attr_rowspan=" rowspan='"+rowspan+"'";
+					}
+					if (colspan>1){
+						attr_colspan=" colspan='"+colspan+"'";
+					}
+					rowStr+="<"+tag+attr_rowspan+attr_colspan+"  title='("+r_item[j].r_index+","+r_item[j].c_index+")'>"+r_item[j].content+"</"+tag+">"
+				}else{//合并的表格进行隐藏处理（正常情况下可以不输出代码）
+					rowStr+="<"+tag+"  title='("+r_item[j].r_index+","+r_item[j].c_index+")' style='display:none;'>"+r_item[j].content+"</"+tag+">"
+				}				
+		}
+        cvsLines += rowStr;
+		 cvsLines +="</tr>";
+    }
+	cvsLines+="</table>"
+	//console.log(cvsLines);
+
+	document.getElementById("result").innerHTML=cvsLines;
+	 targetTable=result.getElementsByTagName("table")[0];
+	 
+   // return cvsLines;
+}
+
+//新建表格
+function buildTable(rowNum,cellNum){
+	historyData=[];//清空历史记录
+	var tablestr="<table width=800 border=1 class=\"mytable\">";
+	for (var rowindex=0;rowindex<rowNum ;rowindex++ )	{
+		tablestr+="<tr>"
+		for (var cellindex=0;cellindex<cellNum ;cellindex++ )	{
+			tablestr+="<td>"+rowindex+"-"+cellindex+"</td>"
+		}
+		tablestr+="</tr>"
+	}
+	tablestr+="</table>"
+	result.innerHTML=tablestr;
+
+	 targetTable=result.getElementsByTagName("table")[0];
+	 htmlCode=targetTable.innerHTML;	
+	 saveHistory(htmlCode);
+	 showHistoryTable(htmlCode)
+	 
+	// console.log( tableData)
+}
+
+// 获取元素盒子尺寸
+function getPos(obj){
+	return obj.getBoundingClientRect();
+}
+
+result.onclick=function(e){
+	targetTable=result.getElementsByTagName("table")[0];
+	// unselect()
+	//isSel=false;
+	var evt=e || window.event;
+	var targetObj=evt.srcElement || evt.target;
+	if (targetObj.tagName=="TD"){
+		tableclassname.value=targetTable.getAttribute("class")
+		tablewidth.value=targetTable.getAttribute("width")+"px"
+		var l=getPos(targetObj).left;
+		var t=getPos(targetObj).top;
+		var w=getPos(targetObj).width;	
+		var h=getPos(targetObj).height;
+		targetObj.style.position="relative"
+		var svalue=targetObj.innerHTML;	
+		tdclassname.value=targetObj.getAttribute("oldclass");
+		tdcontent.value=svalue;
+		tdwidth.value=w+"px";
+		tdheight.value=h+"px";
+	}
+}
+//双击单元格编辑文字内容
+result.ondblclick=function(e){
+	 unselect()
+	isSel=false;
+	var evt=e || window.event;
+	var targetObj=evt.srcElement || evt.target;
+	if (targetObj.tagName=="TD"){
+		var l=getPos(targetObj).left;
+		var t=getPos(targetObj).top;
+		var w=getPos(targetObj).width-12;	
+		var h=getPos(targetObj).height-6;
+		targetObj.style.position="relative"
+		var svalue=targetObj.innerHTML;	
+		targetObj.innerHTML="";
+		var newInput=document.createElement("input");
+		newInput.value=svalue;
+		var st="position:absolute;left:0;top:0;width:"+w+"px;height:"+h+"px;margin:0px;border:none;background:#efefef;color:#00f";
+		newInput.setAttribute("style",st);	
+		//newInput.className="editInput"
+	
+		newInput.onblur=function(){
+				targetObj.innerHTML = this.value;
+				targetObj.style.position=""
+				//targetObj.removeChild(newInput);
+                newInput.remove();
+				targetTable=result.getElementsByTagName("table")[0];
+				 htmlCode=targetTable.innerHTML;	
+				 saveHistory(htmlCode);
+				 showHistoryTable(htmlCode)
+		}
+
+		targetObj.appendChild(newInput)
+		newInput.focus();
+	}
+}
+
+document.onselectstart=function(){return false}
+
+
+result.onmousemove=function(e){
+	var event=e || window.event;
+	var targetObj=event.srcElement || event.target;
+	if (targetObj.tagName=="TD" || targetObj.tagName=="TH"){
+		targetObj.style.cursor = 'default';	
+		if (event.offsetX >targetObj.offsetWidth - 5) {
+			targetObj.style.cursor = 'col-resize';	
+		}else if (event.offsetY >targetObj.offsetHeight - 5) {
+			targetObj.style.cursor = 'row-resize';	
+		}
+	}
+}
+
+function initDrag(){
+	for (var i=0;i<targetTable.rows.length ;i++ ){
+		for (var j=0;j<targetTable.rows[i].cells.length ;j++ ){
+			var targetObj=targetTable.rows[i].cells[j];
+			dragSplit(targetObj)
+		}
+	}
+}
+//表格操作mousedown事件
+result.onmousedown=function(e){
+	var event=e || window.event;
+	var targetObj=event.srcElement || event.target;
+	unselect()
+	if (targetObj.tagName=="TD" || targetObj.tagName=="TH"){
+		targetObj.style.cursor = 'default';	
+		
+		if (event.offsetX >targetObj.offsetWidth - 5) {
+			targetObj.style.cursor = 'col-resize';		
+			targetObj.mousedown
+			dragSplit(targetObj);//拖拽改变单元格高宽
+		}else if (event.offsetY >targetObj.offsetHeight - 5) {
+			targetObj.style.cursor = 'row-resize';
+			targetObj.mousedown
+			dragSplit(targetObj);//拖拽改变单元格高宽	
+		}else{
+			beginselect(e)
+		}
+	}
+}
+
+//框选操作
+function beginselect(e){
+	 unselect()
+	isSel=true;
+	var evt=e || window.event;
+	var targetObj=evt.srcElement || evt.target;
+	console.log(targetObj.tagName)
+	//if (targetObj.tagName=="TH"){
+	if (targetObj.tagName=="TD" || targetObj.tagName=="TH"){
+			
+			//targetObj.setAttribute("class","select")
+			sleft0=getPos(targetObj).left;
+			stop0=getPos(targetObj).top;
+			sright0=getPos(targetObj).left+getPos(targetObj).width
+			sbottom0=getPos(targetObj).top+getPos(targetObj).height
+	}	
+	
+	document.onmousemove=function(e){
+		var evt=e || window.event;
+		var targetObj=evt.srcElement || evt.target;
+			if(isSel==true){	
+				//if (targetObj.tagName=="TH"){
+				if (targetObj.tagName=="TD" || targetObj.tagName=="TH"){
+					//targetObj.setAttribute("class","select")
+					sleft1=getPos(targetObj).left;
+					stop1=getPos(targetObj).top;
+					sright1=getPos(targetObj).left+getPos(targetObj).width;
+					sbottom1=getPos(targetObj).top+getPos(targetObj).height;
+					//targetObj.innerHTML=sright0+"-"+sbottom0
+					if (sleft1>=sleft0){
+					s_left0=sleft0;
+					s_right0=sright1;
+					}else{
+					s_left0=sleft1;
+					s_right0=sright0;
+					}
+					if (stop1>=stop0){
+					s_top0=stop0;
+					s_bottom0=sbottom1;
+					}else{
+					s_top0=stop1;
+					s_bottom0=sbottom0;
+					}
+					makeSelect(s_left0,s_top0,s_right0,s_bottom0)
+				}
+			}
+    }
+	document.onmouseup=function(){
+		makeSelect(sleft0,stop0,sright0,sbottom0)
+		 document.onmousemove = null;
+		document.onmouseup = null;
+		isSel=false
+	}
+}
+
+//清空框选
+function unselect(){
+	//value =targetTable.rows[i].cells[j].innerText; 
+		for(var i=0;i<targetTable.rows.length;i++){ 
+            targetTable.rows[i].removeAttribute("class");//清除选择行
+			var cells=targetTable.rows[i].cells;
+			for (var j=0;j<cells.length ; j++)	{
+				cells[j].className=""
+			}		
+		}
+}
+
+function makeSelect(s_left,s_top,s_right,s_bottom){
+	for(var i=0;i<targetTable.rows.length;i++){        
+		var cells=targetTable.rows[i].cells;
+		for (var j=0;j<cells.length ; j++)	{
+			if (getPos(cells[j]).left>=s_left && getPos(cells[j]).left+getPos(cells[j]).width<=s_right && getPos(cells[j]).top>=s_top && getPos(cells[j]).top+getPos(cells[j]).height<=s_bottom){
+				var oldclass=cells[j].getAttribute("class")//获取原先class
+				cells[j].setAttribute("class","select");
+                targetTable.rows[i].setAttribute("class","active");//选择行
+				if (oldclass!=="select"){
+					cells[j].setAttribute("oldclass",oldclass);
+				}	
+			}
+		}		
+	}
+}
+
+//获取行序号
+function getRowIndex(){
+	var  rowIndex;
+    for(var i=0;i<targetTable.rows.length;i++){ 
+        targetTable.rows[i].removeAttribute("class");//清除选择行
+        var cells=targetTable.rows[i].cells;
+        for (var j=0;j<cells.length ; j++)	{
+            if (cells[j].className.indexOf("select")>-1){
+                rowIndex=i
+                return rowIndex
+            }
+        }		
+    }
+	return rowIndex;
+}
+
+//获取列序号
+function getCellIndex(e){
+	var  rowIndex;
+	var cellIndex;
+
+	return cellIndex;
+}
+
+function insertRow0(){
+	var rowIndex;
+	var cTable=targetTable;
+	for (var i = 0; i < cTable.rows.length; i++) {    //遍历Table的所有Row
+	    for (var j = 0; j < cTable.rows[i].cells.length; j++) {   //遍历Row中的每一列			
+			var cTD=cTable.rows[i].cells[j];
+			if(cTD.className.indexOf("select")>-1){			
+				 rowIndex=i
+				 break;
+			}            
+        }       
+    } 
+	var newRow =cTable.insertRow(rowIndex+1);
+	for (var i=0;i<cTable.rows[rowIndex].cells.length ; i++){
+			var newCell =newRow.insertCell();
+			newCell.innerHTML=cTable.rows[rowIndex].cells[i].innerHTML
+			if(cTable.rows[rowIndex].cells[i].rowSpan>1){
+				cTable.rows[rowIndex].cells[i].rowSpan++;
+			}
+			newCell.rowSpan=1
+	}
+	targetTable=result.getElementsByTagName("table")[0];
+	 htmlCode=targetTable.innerHTML;	
+	 saveHistory(htmlCode);
+	 showHistoryTable(htmlCode)
+}
+
+
+//在表格插入一行
+function insertRow(){	
+	var currentRowIndex;//当前行序号
+	var currentRow;//当前行对象
+	var currentCellIndex;//当前列号	
+    currentRowIndex=targetTable.rows.length-1;
+    //获取选中的行序号
+    if (getRowIndex()){
+        currentRowIndex=getRowIndex()
+    }
+    currentRow= targetTable.rows[currentRowIndex];
+	//复制当前行单元格
+    var newCells=[];
+    for (var i=0;i<currentRow.cells.length ; i++){
+        var cur_cell=currentRow.cells[i]
+        var newcell={
+            nclass:cur_cell.getAttribute("class"),
+            nstyle:(cur_cell.getAttribute("style")!=null)?cur_cell.getAttribute("style"):'',
+            ntitle:"("+(currentRowIndex+1)+","+i+")",
+            ntext:cur_cell.innerHTML,
+        };
+        newCells.push(newcell)
+    }
+    
+     //插入行
+    targetTable.insertRow(currentRowIndex+1);//插入行
+    currentRow= targetTable.rows[currentRowIndex+1]
+    for (var cell_index=0; cell_index<newCells.length; cell_index++){
+          currentRow.insertCell(cell_index)
+          var ncell=currentRow.cells[cell_index]
+          ncell.setAttribute("class",newCells[cell_index].ncalss);
+          ncell.setAttribute("style",newCells[cell_index].nstyle);
+          ncell.setAttribute("title",newCells[cell_index].ntitle);
+          ncell.innerHTML=newCells[cell_index].ntext;
+
+    }
+    //克隆行
+    //var newRow =  targetTable.rows[currentRowIndex].cloneNode(true); //克隆指定行
+    //targetTable.getElementsByTagName("tbody")[0].appendChild(newRow); //添加刚才克隆的一行
+    currentRowIndex=currentRowIndex+1
+    currentRow= targetTable.rows[currentRowIndex]
+    var cells=currentRow.cells;
+    var cellLen=cells.length;
+    for (var i=0;i<cellLen ;i++ ){
+        var startRowIndex;       
+        var disp= targetTable.rows[currentRowIndex].cells[i].style.display;
+     //这里要判断列合并的情况 
+        if (disp=="none"){
+           if (i==0){
+                startRowIndex=findStartRowIndex(currentRowIndex,i) 
+                console.log("st",startRowIndex)
+                targetTable.rows[startRowIndex].cells[i].rowSpan=currentRowIndex-startRowIndex+1;
+                if (targetTable.rows[startRowIndex].cells[i].colSpan>1){
+                    targetTable.rows[currentRowIndex].cells[i].colSpan=targetTable.rows[startRowIndex].cells[i].colSpan
+                }         
+           }
+           if (i>0 && targetTable.rows[currentRowIndex].cells[i-1].style.display!="none"){
+                startRowIndex=findStartRowIndex(currentRowIndex,i) 
+                console.log("st",startRowIndex)
+                targetTable.rows[startRowIndex].cells[i].rowSpan=currentRowIndex-startRowIndex+1;
+                targetTable.rows[currentRowIndex].cells[i].colSpan=targetTable.rows[startRowIndex].cells[i].colSpan
+           }      
+         }else{             
+            if (targetTable.rows[currentRowIndex-1].cells[i].rowSpan>1){
+                startRowIndex=currentRowIndex-1
+               targetTable.rows[startRowIndex].cells[i].rowSpan=currentRowIndex-startRowIndex+1;
+				//targetTable.rows[startRowIndex].cells[i].rowSpan++;
+                targetTable.rows[currentRowIndex].cells[i].style.display="none"
+                if (targetTable.rows[startRowIndex].cells[i].colSpan>1){
+                    targetTable.rows[currentRowIndex].cells[i].colSpan=targetTable.rows[startRowIndex].cells[i].colSpan
+                }             
+            }else{           
+                continue
+            }
+        };
+        
+        if(targetTable.rows[currentRowIndex].cells[i].style.display=="none" ||targetTable.rows[currentRowIndex].cells[i].rowSpan>1){
+            let n=1
+            while(targetTable.rows[currentRowIndex+n].cells[i].style.display=="none"){
+                console.log("连续",currentRowIndex+n,i)
+                targetTable.rows[startRowIndex].cells[i].rowSpan++
+                n++
+            }
+        }
+    }
+    
+    targetTable=result.getElementsByTagName("table")[0];
+    htmlCode=targetTable.innerHTML;	
+    saveHistory(htmlCode);
+    showHistoryTable(htmlCode)
+}
+
+
+//追加表格行
+function addRow(){
+    var totalRowNum=targetTable.rows.length;
+    var totalCellNum=targetTable.rows[0].cells.length
+   // console.log(totalCellNum)
+    var currentRowIndex=targetTable.rows.length-1;
+
+    targetTable.insertRow(currentRowIndex+1);//插入行
+    var currentRow=targetTable.rows[currentRowIndex+1]
+    for (var i=0;i< totalCellNum; i++){
+        currentRow.insertCell()
+        var newcell=currentRow.cells[i]
+        newcell.innerHTML=currentRowIndex+"-"+i
+    }
+     targetTable=result.getElementsByTagName("table")[0];
+    htmlCode=targetTable.innerHTML;	
+    saveHistory(htmlCode);
+    showHistoryTable(htmlCode)
+}
+
+//删除表格最后一行
+function delRow(){
+	var rowIndex;
+	if ( targetTable){
+		rowIndex=targetTable.rows.length-1;
+		if (rowIndex<=0)	{
+			return false
+		}
+        //rowIndex=targetTable.rows.length-1;
+        var cellLen=targetTable.rows[rowIndex].cells.length;
+        for (var i=0;i<cellLen ;i++ ){
+            var startRowIndex;
+            var disp= targetTable.rows[rowIndex].cells[i].style.display;      
+            if (disp=="none"){
+				startRowIndex=findStartRowIndex(rowIndex,i) 
+				if ( targetTable.rows[startRowIndex].cells[i].rowSpan>1){
+					targetTable.rows[startRowIndex].cells[i].rowSpan=rowIndex-startRowIndex; 
+					if (targetTable.rows[startRowIndex].cells[i].rowSpan==1){
+						targetTable.rows[startRowIndex].cells[i].removeAttribute("rowspan")
+					}
+					if (targetTable.rows[startRowIndex].cells[i].colSpan==1){
+						targetTable.rows[startRowIndex].cells[i].removeAttribute("colspan")
+					}
+				}
+            }            
+        }
+		targetTable.deleteRow(rowIndex);
+	}
+    targetTable=result.getElementsByTagName("table")[0];
+    htmlCode=targetTable.innerHTML;	
+    saveHistory(htmlCode);
+    showHistoryTable(htmlCode)
+}
+
+//根据已知行列号查找起始行序号
+function findStartRowIndex(rowIndex,cellIndex){
+    var result;
+	var disp= targetTable.rows[rowIndex].cells[cellIndex].style.display;
+
+	if (disp!="none" || rowIndex==0){	
+		result=rowIndex;
+        return result
+	}else{
+		rowIndex--;
+		return findStartRowIndex(rowIndex,cellIndex);
+	}
+	return result
+}
+
+//根据已知行列号查找起始列序号
+function findStartCellIndex(rowIndex,cellIndex){
+    var result;
+	var disp= targetTable.rows[rowIndex].cells[cellIndex].style.display;
+
+	if (disp!="none" || cellIndex==0){	
+		result=cellIndex;
+        return result
+	}else{
+		cellIndex--;
+		return findStartCellIndex(rowIndex,cellIndex);
+	}
+	return result
+}
+
+//水平列合并
+function mergeH(imin,imax,jmin,jmax){
+	var rowspan=targetTable.rows[imin].cells[jmin].rowSpan;
+	var colspan=targetTable.rows[imin].cells[jmin].colSpan;
+	var rowIndex=imin
+	for (var j=jmin;j<=jmax ;j++){
+			var rowspan0=targetTable.rows[rowIndex].cells[j].rowSpan;
+			var colspan0=targetTable.rows[rowIndex].cells[j].colSpan;
+			var oldclass=targetTable.rows[rowIndex].cells[j].getAttribute("oldclass");
+			targetTable.rows[rowIndex].cells[j].setAttribute("class",oldclass);
+			targetTable.rows[rowIndex].cells[j].removeAttribute("oldclass");	
+			if (j!=jmin){
+                if (targetTable.rows[rowIndex].cells[j].style.display!="none"){
+                   colspan+=colspan0
+                }
+                
+				targetTable.rows[rowIndex].cells[j].style.display="none";	
+                targetTable.rows[rowIndex].cells[j].removeAttribute("rowspan")
+                targetTable.rows[rowIndex].cells[j].removeAttribute("colspan")
+				//targetTable.rows[rowIndex].cells[j].colSpan=1;
+				//targetTable.rows[rowIndex].cells[j].parentElement.removeChild(targetTable.rows[rowIndex].cells[j])
+				
+			}
+	}
+	targetTable.rows[imin].cells[jmin].rowSpan=rowspan;
+	targetTable.rows[imin].cells[jmin].colSpan=colspan;
+}
+//垂直行合并
+function mergeV(imin,imax,jmin,jmax){
+	var rowspan=targetTable.rows[imin].cells[jmin].rowSpan;
+	var colspan=targetTable.rows[imin].cells[jmin].colSpan;
+	var cellIndex=jmin
+	for (var i=imin;i<=imax ; i++){
+			var rowspan0=targetTable.rows[i].cells[cellIndex].rowSpan;
+			var colspan0=targetTable.rows[i].cells[cellIndex].colSpan;
+			var oldclass=targetTable.rows[i].cells[cellIndex].getAttribute("oldclass");
+			targetTable.rows[i].cells[cellIndex].setAttribute("class",oldclass);
+			targetTable.rows[i].cells[cellIndex].removeAttribute("oldclass");	
+			if (i!=imin){
+                if (targetTable.rows[i].cells[cellIndex].style.display!="none"){
+                    rowspan+=rowspan0
+                }
+                
+				targetTable.rows[i].cells[cellIndex].style.display="none";
+                targetTable.rows[i].cells[cellIndex].removeAttribute("rowspan")
+                targetTable.rows[i].cells[cellIndex].removeAttribute("colspan")
+				//targetTable.rows[i].cells[cellIndex].rowSpan=1;
+				//targetTable.rows[i].cells[cellIndex].parentElement.removeChild(targetTable.rows[i].cells[cellIndex])
+				
+			}
+	}
+	targetTable.rows[imin].cells[jmin].rowSpan=rowspan;
+	targetTable.rows[imin].cells[jmin].colSpan=colspan;
+}
+
+//行列合并
+function mergeHV(imin,imax,jmin,jmax){
+	var rowspan=targetTable.rows[imin].cells[jmin].rowSpan;
+	var colspan=targetTable.rows[imin].cells[jmin].colSpan;
+	if (imin==imax && jmin==jmax){
+		alert("请选择至少两个以上单元格进行合并")
+		return 
+	}
+	if (imin==imax && jmin!=jmax){//单行水平合并
+		 mergeH(imin,imax,jmin,jmax)
+	}
+
+	if (imin!=imax && jmin==jmax){//单列水平合并
+		 mergeV(imin,imax,jmin,jmax)
+	}
+
+	if (imin!=imax && jmin!=jmax){//多行多列合并
+			var rowspan1=0;
+			var colspan1=0;
+			//获取rowspan
+			for (i=imin; i<=imax;i++ ){
+					var rowspan0=targetTable.rows[i].cells[jmin].rowSpan;
+					rowspan1+=rowspan0;
+			}
+			//获取colspan
+			for (j=jmin; j<=jmax;j++ ){
+					var colspan0=targetTable.rows[imin].cells[j].colSpan;
+					colspan1+=colspan0;
+			}
+			targetTable.rows[imin].cells[jmin].rowSpan=rowspan1;
+			targetTable.rows[imin].cells[jmin].colSpan=colspan1;
+
+
+			for (var i=imin;i<=imax ; i++){
+				for (var j=jmin;j<=jmax ; j++){
+						var oldclass=targetTable.rows[i].cells[j].getAttribute("oldclass");
+						targetTable.rows[i].cells[j].setAttribute("class",oldclass);
+						targetTable.rows[i].cells[j].removeAttribute("oldclass");	
+						if (i!=imin || j!=jmin){
+						targetTable.rows[i].cells[j].style.display="none";
+                        targetTable.rows[i].cells[j].removeAttribute("rowspan")
+                        targetTable.rows[i].cells[j].removeAttribute("colspan")
+							//targetTable.rows[i].cells[j].parentElement.removeChild(targetTable.rows[i].cells[j])
+						}
+				}		
+			}
+	}
+}
+
+//行列合并
+function mergeRow(){
+	var rowspan,colspan,rowIndex,cellIndex,cell;
+	var i0=targetTable.rows.length-1,i1=0,j0=targetTable.rows[0].cells.length-1,j1=0;
+	for(var i=0;i<targetTable.rows.length;i++){ 
+			var cells=targetTable.rows[i].cells;
+			for (var j=0;j<cells.length ; j++)	{
+				if (cells[j].getAttribute("class")=="select"){
+					//恢复原先的样式开始
+					var oldclass=cells[j].getAttribute("oldclass");
+					cells[j].setAttribute("class",oldclass)	;	
+					cells[j].removeAttribute("oldclass");	
+					i0=Math.min(i0,i)
+					i1=Math.max(i1,i)
+					j0=Math.min(j0,j)
+					j1=Math.max(j1,j)
+					//break loopouter;
+				}
+			};
+	};
+	console.log(i0,i1,j0,j1)
+	//mergeV(i0,i1,j0,j1);//垂直合并
+	//mergeH(i0,i1,j0,j1);//水平合并
+	mergeHV(i0,i1,j0,j1);//行列合并
+
+	targetTable=result.getElementsByTagName("table")[0];
+	 htmlCode=targetTable.innerHTML;	
+	 saveHistory(htmlCode);
+	 showHistoryTable(htmlCode)
+}
+
+
+//单元格水平拆分
+function splitH(i0,j0){
+    if (targetTable.rows[i0].cells[j0].colSpan<=1){
+        alert("非合并的单元格不能拆分，请重新选择！")
+        return false
+    }
+
+	for(var i=0;i<targetTable.rows.length;i++){ 
+		if (i!=i0){
+			var cell0=targetTable.rows[i].cells[j0];
+			var colspan=cell0.colSpan+1;
+			cell0.colSpan=colspan;
+            var newCell=targetTable.rows[i].insertCell(j0+1)//往当前节点的后面插入新节点
+            newCell.style.display="none";
+            newCell.innerHTML="";
+		}		
+	}
+	var text0=targetTable.rows[i0].cells[j0].innerHTML;
+	// var newCell=targetTable.rows[i0].insertCell(j0)//往当前节点的前面插入新节点
+	 var newCell=targetTable.rows[i0].insertCell(j0+1)//往当前节点的后面插入新节点
+     
+	 newCell.innerHTML=text0;
+     if (targetTable.rows[i0].cells[j0].colSpan>1){
+          targetTable.rows[i0].cells[j0].colSpan--;
+     }
+}
+
+//单元格垂直拆分
+function splitV(i0,j0){
+	for(var i=0;i<targetTable.rows.length;i++){ 
+		if (i!=i0){
+			var cell0=targetTable.rows[i].cells[j0];
+			var colspan=cell0.colSpan+1;
+			cell0.colSpan=colspan;
+		}		
+	}
+	var text0=targetTable.rows[i0].cells[j0].innerHTML;
+	 var newCell=targetTable.rows[i0].insertCell(j0)
+	 newCell.innerHTML=text0;
+     if (targetTable.rows[i0].cells[j0].rowSpan>1){
+          targetTable.rows[i0].cells[j0].rowSpan--;
+     }
+}
+
+//将合并的单元格进行恢复
+function resumeMerge(i0,j0){
+	console.log(i0,j0)
+	var text0=targetTable.rows[i0].cells[j0].innerHTML;
+	var rowspan=targetTable.rows[i0].cells[j0].rowSpan;
+	var colspan=targetTable.rows[i0].cells[j0].colSpan;
+	console.log(rowspan,colspan)
+
+	for(k=0;k<rowspan;k++){
+			var rowIndex0=i0+k 
+			for(m=0;m<colspan;m++){				
+				var cellIndex0=j0+m
+				targetTable.rows[rowIndex0].cells[cellIndex0].removeAttribute("style");
+				targetTable.rows[rowIndex0].cells[cellIndex0].innerHTML=text0;	
+				targetTable.rows[rowIndex0].cells[cellIndex0].rowSpan=1
+				targetTable.rows[rowIndex0].cells[cellIndex0].colSpan=1
+			}
+	}	
+	targetTable.rows[i0].cells[j0].removeAttribute("rowspan")
+	targetTable.rows[i0].cells[j0].removeAttribute("colspan")
+	//targetTable.rows[i0].cells[j0].rowSpan=1
+	//targetTable.rows[i0].cells[j0].colSpan=1
+}
+
+
+//分割恢复合并的行列
+function splitRow(){
+	var rowspan,colspan,rowIndex,cellIndex;
+	var selectCount=0;
+
+	for(var i=0;i<targetTable.rows.length;i++){ 
+		var cells=targetTable.rows[i].cells;
+		for (var j=0;j<cells.length ; j++)	{
+			if (cells[j].getAttribute("class")=="select"){
+				selectCount++;
+			}
+		};
+	};
+	if (selectCount>1){
+		alert("目前只支持每次拆分一个单元格\n请重新选择")
+		unselect();//清空选框			
+		return false
+	}
+
+	loopouter:     //跳出多重循环标志
+	for(var i=0;i<targetTable.rows.length;i++){ 
+		loopinner:   //跳出内循环标志
+		var cells=targetTable.rows[i].cells;
+		for (var j=0;j<cells.length ; j++)	{
+			rowspan=cells[j].rowSpan;
+			colspan=cells[j].colSpan;
+			if (cells[j].getAttribute("class")=="select"){
+				//恢复原先的样式开始
+				var oldclass=cells[j].getAttribute("oldclass");
+				cells[j].setAttribute("class",oldclass)	;	
+				cells[j].removeAttribute("oldclass");	
+				
+				if (rowspan==1 && colspan==1){//如果选中的是未合并的单元格则进行拆分
+					splitH(i,j);//默认水平分割拆分
+					//return false;
+				}else{//如果是已经合并过的单元格则进行恢复
+					resumeMerge(i,j)
+				}
+				break loopouter;
+			}
+		};
+	};
+
+	targetTable=result.getElementsByTagName("table")[0];
+	 htmlCode=targetTable.innerHTML;	
+	 saveHistory(htmlCode);
+	 showHistoryTable(htmlCode)
+}
+
+//追加表格列
+function addCell(){
+    var totalRowNum=targetTable.rows.length;
+    var totalCellNum=targetTable.rows[0].cells.length
+    console.log(totalCellNum)
+    var currentCellIndex=totalCellNum;
+
+    for (var i=0;i< totalRowNum; i++){
+        targetTable.rows[i].insertCell(currentCellIndex)
+        var newcell= targetTable.rows[i].cells[currentCellIndex]
+        newcell.innerHTML=i+"-"+currentCellIndex
+    }
+     targetTable=result.getElementsByTagName("table")[0];
+    htmlCode=targetTable.innerHTML;	
+    saveHistory(htmlCode);
+    showHistoryTable(htmlCode)
+}
+
+//删除列
+function delCell(){	
+	var totalRowNum=targetTable.rows.length;
+    var totalCellNum=targetTable.rows[0].cells.length;
+	var cellIndex;
+	cellIndex=totalCellNum-1;
+	if (cellIndex<=0)	{
+		return false
+	}
+	for (var i=0;i< totalRowNum; i++){
+		var startCellIndex;
+		var cell=targetTable.rows[i].cells[cellIndex];
+		var disp= cell.style.display; 
+		if (disp=="none"){
+			startCellIndex=findStartCellIndex(i,cellIndex) 
+			if (targetTable.rows[i].cells[startCellIndex].colSpan>1){
+				targetTable.rows[i].cells[startCellIndex].colSpan=cellIndex-startCellIndex;
+				if(targetTable.rows[i].cells[startCellIndex].colSpan==1){
+					targetTable.rows[i].cells[startCellIndex].removeAttribute("colspan")
+				}
+				if (targetTable.rows[i].cells[startCellIndex].colSpan==1){
+					targetTable.rows[i].cells[startCellIndex].removeAttribute("colspan")
+				}
+			}    
+		} 
+        cell.remove()
+    }
+	targetTable=result.getElementsByTagName("table")[0];
+    htmlCode=targetTable.innerHTML;	
+    saveHistory(htmlCode);
+    showHistoryTable(htmlCode)
+}
+
+//拖拽改变单元格高宽
+function dragSplit(targetObj){
+	var drag=false;//是否允许拖拽
+	targetObj.onmousemove=function(e){	
+		var event=e||event; 
+		targetObj.style.cursor = 'default';
+		if (event.offsetX >targetObj.offsetWidth - 5) {
+			targetObj.style.cursor = 'col-resize';		
+		}
+		if (event.offsetY >targetObj.offsetHeight - 5) {
+			targetObj.style.cursor = 'row-resize';		
+		}
+	};
+	targetObj.onmousedown=function(e){ 
+		var event=e||event; 
+		var oldX,oldWidth,oldY,oldHeight;
+		targetObj.style.cursor = 'default';
+		if (event.offsetX >targetObj.offsetWidth - 5) {
+			targetObj.style.cursor = 'col-resize';
+			drag=true;
+			oldX=event.x;
+			oldWidth=targetObj.offsetWidth;
+			console.log(oldX,oldWidth)
+		}
+		if (event.offsetY >targetObj.offsetHeight - 5) {
+			targetObj.style.cursor = 'row-resize';
+			drag=true;
+			oldY=event.y;
+			oldHeight=targetObj.offsetHeight;
+			console.log(oldY,oldHeight)
+		}
+
+		if ( targetObj.setCapture ) {
+			targetObj.setCapture();
+		}
+		document.onselectstart=function(){
+			return false
+		};
+		document.onmousemove=function(event){	
+			targetObj.style.cursor = 'default';
+			if (event.offsetX >targetObj.offsetWidth - 5) {
+				targetObj.style.cursor = 'col-resize';				
+			}
+			if (event.offsetY >targetObj.offsetHeight - 5) {
+				targetObj.style.cursor = 'row-resize';				
+			}
+
+			if (drag==true)	{
+				targetObj.style.cursor = 'col-resize';
+				if (oldWidth + (event.x -oldX)>0) {
+					//targetObj.width =oldWidth + (event.x -oldX);
+					var ccellIndex;
+					//targetObj.width =oldWidth + (event.x -oldX); 
+					for (var i=0;i<targetTable.rows.length ;i++ ){
+						for (var j=0;j<targetTable.rows[i].cells.length ;j++ ){
+							if (i!=0)	{
+								targetTable.rows[i].cells[j].width=""
+								targetTable.rows[i].cells[j].style.Width=""
+							}							
+							if (targetTable.rows[i].cells[j]==targetObj)	{
+								ccellIndex=j;
+							}
+						}
+					}
+					targetTable.rows[0].cells[ccellIndex].width =oldWidth + (event.x -oldX); 
+				}
+				if (oldHeight + (event.y -oldY)>0) {
+					var crowIndex;
+					//targetObj.width =oldWidth + (event.x -oldX); 
+					for (var i=0;i<targetTable.rows.length ;i++ ){
+						for (var j=0;j<targetTable.rows[i].cells.length ;j++ ){
+							if(j!=0){
+								targetTable.rows[i].cells[j].height=""
+								targetTable.rows[i].cells[j].style.Height=""
+							}
+							if (targetTable.rows[i].cells[j]==targetObj)	{
+								crowIndex=i;
+							}
+						}
+					}
+					targetTable.rows[crowIndex].cells[0].height =oldHeight + (event.y -oldY); 		
+				}
+			}			
+		} 
+		document.onmouseup=function(event){ 
+			drag=false;
+			document.onmousemove=document.onmouseup=null;
+			if (targetObj.releaseCapture ) {
+					targetObj.releaseCapture();
+			} 
+		}
+		//return false;
+    };
+}
+
+
+//数组转表格
+MatrixtoTable(tableData)
+saveHistory(targetTable.innerHTML)
+ initDrag()
+  </script>
+</html>
